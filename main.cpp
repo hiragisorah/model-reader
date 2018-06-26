@@ -2,7 +2,7 @@
 
 int main(void)
 {
-	AssimpModel kaoru("kaoru.fbx");
+	AssimpModel kaoru("..\\kaoru.fbx");
 
 	rewind(stdin);
 	getchar();
