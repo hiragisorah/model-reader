@@ -58,6 +58,11 @@ const unsigned int AssimpModel::get_bone_cnt(const unsigned int & mesh_num) cons
 	return this->mesh_list_[mesh_num].bones_.size();
 }
 
+const std::string & AssimpModel::get_mesh_name(const unsigned int & mesh_num) const
+{
+	return this->mesh_list_[mesh_num].name_;
+}
+
 const float3 & AssimpModel::get_position(const unsigned int & mesh_num, const unsigned int & vtx_num) const
 {
 	return this->mesh_list_[mesh_num].vertices_[vtx_num].position_;
@@ -78,6 +83,11 @@ const float4x4 & AssimpModel::get_bone_init_matrix(const unsigned int & mesh_num
 	return this->mesh_list_[mesh_num].bones_[bone_num].init_matrix_;
 }
 
+const std::string & AssimpModel::get_bone_name(const unsigned int & mesh_num, const unsigned int & bone_num) const
+{
+	return this->mesh_list_[mesh_num].bones_[bone_num].name_;
+}
+
 const unsigned int & AssimpModel::get_bone_id(const unsigned int & mesh_num, const unsigned int & vtx_num, const unsigned int & bone_index) const
 {
 	return this->mesh_list_[mesh_num].vertices_[vtx_num].bone_.id_[bone_index];
@@ -90,15 +100,16 @@ const float & AssimpModel::get_bone_weight(const unsigned int & mesh_num, const 
 
 bool AssimpModel::ProcessNode(aiNode * node)
 {
+	std::cout << node->mName.C_Str() << std::endl;
+
 	auto scene = this->importer_.GetScene();
 
 	if (!scene->HasMeshes()) return false;
 
-	this->mesh_list_.resize(this->mesh_list_.size() + node->mNumMeshes);
-
 	for (unsigned int n = 0; n < node->mNumMeshes; ++n)
 	{
-		auto & mesh = this->mesh_list_[n];
+		this->mesh_list_.emplace_back(PrivateMesh());
+		auto & mesh = this->mesh_list_.back();
 		auto & assimp_mesh = scene->mMeshes[node->mMeshes[n]];
 		this->ProcessMesh(mesh, assimp_mesh);
 	}
@@ -115,7 +126,6 @@ bool AssimpModel::ProcessMesh(PrivateMesh & mesh, aiMesh * assimp_mesh)
 		|| !assimp_mesh->HasNormals()
 		|| !assimp_mesh->HasTextureCoords(0))
 		return false;
-
 
 	for (unsigned int n = 0; n < assimp_mesh->mNumFaces; ++n)
 	{
@@ -180,6 +190,8 @@ void AssimpModel::ProcessBones(PrivateMesh & mesh, aiMesh * assimp_mesh)
 		for (int x = 0; x < 4; ++x)
 			for (int y = 0; y < 4; ++y)
 				mesh.bones_[n].init_matrix_.m[x][y] = bone->mOffsetMatrix[x][y];
+
+		mesh.bones_[n].name_ = bone->mName.C_Str();
 
 		for (unsigned int i = 0; i < bone->mNumWeights; ++i)
 		{
