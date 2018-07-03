@@ -53,9 +53,9 @@ const unsigned int AssimpModel::get_index_cnt(const unsigned int & mesh_num) con
 	return this->mesh_list_[mesh_num].indices_.size();
 }
 
-const unsigned int AssimpModel::get_bone_cnt(const unsigned int & mesh_num) const
+const unsigned int AssimpModel::get_bone_cnt(void) const
 {
-	return this->mesh_list_[mesh_num].bones_.size();
+	return this->bones_.size();
 }
 
 const std::string & AssimpModel::get_mesh_name(const unsigned int & mesh_num) const
@@ -80,12 +80,12 @@ const float2 & AssimpModel::get_texcoord(const unsigned int & mesh_num, const un
 
 const float4x4 & AssimpModel::get_bone_init_matrix(const unsigned int & mesh_num, const unsigned int & bone_num) const
 {
-	return this->mesh_list_[mesh_num].bones_[bone_num].init_matrix_;
+	return this->bones_[bone_num].init_matrix_;
 }
 
-const std::string & AssimpModel::get_bone_name(const unsigned int & mesh_num, const unsigned int & bone_num) const
+const std::string & AssimpModel::get_bone_name(const unsigned int & bone_num) const
 {
-	return this->mesh_list_[mesh_num].bones_[bone_num].name_;
+	return this->bones_[bone_num].name_;
 }
 
 const unsigned int & AssimpModel::get_bone_id(const unsigned int & mesh_num, const unsigned int & vtx_num, const unsigned int & bone_index) const
@@ -100,8 +100,6 @@ const float & AssimpModel::get_bone_weight(const unsigned int & mesh_num, const 
 
 bool AssimpModel::ProcessNode(aiNode * node)
 {
-	std::cout << node->mName.C_Str() << std::endl;
-
 	auto scene = this->importer_.GetScene();
 
 	if (!scene->HasMeshes()) return false;
@@ -181,24 +179,38 @@ void AssimpModel::ProcessBones(PrivateMesh & mesh, aiMesh * assimp_mesh)
 
 	vertices_bones.resize(assimp_mesh->mNumVertices);
 
-	mesh.bones_.resize(assimp_mesh->mNumBones);
-
 	for (unsigned int n = 0; n < assimp_mesh->mNumBones; ++n)
 	{
 		auto & bone = assimp_mesh->mBones[n];
 
-		for (int x = 0; x < 4; ++x)
-			for (int y = 0; y < 4; ++y)
-				mesh.bones_[n].init_matrix_.m[x][y] = bone->mOffsetMatrix[x][y];
+		std::string bone_name = bone->mName.C_Str();
 
-		mesh.bones_[n].name_ = bone->mName.C_Str();
+		unsigned int bone_id = 0;
+
+		auto search = std::find_if(this->bones_.begin(), this->bones_.end(), [&](Bone & a) { return a.name_ == bone_name; });
+		if (search == this->bones_.end())
+		{
+			this->bones_.emplace_back(Bone());
+			auto & global_bone = this->bones_.back();
+
+			global_bone.name_ = bone_name;
+			for (int x = 0; x < 4; ++x)
+				for (int y = 0; y < 4; ++y)
+					global_bone.init_matrix_.m[x][y] = bone->mOffsetMatrix[x][y];
+
+			bone_id = std::distance(this->bones_.begin(), this->bones_.end());
+		}
+		else
+		{
+			bone_id = std::distance(this->bones_.begin(), search);
+		}
 
 		for (unsigned int i = 0; i < bone->mNumWeights; ++i)
 		{
 			auto & weight = bone->mWeights[i].mWeight;
 			auto & vtx_id = bone->mWeights[i].mVertexId;
 			BoneData bone;
-			bone.bone_id = n;
+			bone.bone_id = bone_id;
 			bone.weight_ = weight;
 			vertices_bones[vtx_id].emplace_back(bone);
 		}

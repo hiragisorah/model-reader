@@ -70,7 +70,6 @@ private:
 
 		std::vector<Vertex> vertices_;
 		std::vector<unsigned int> indices_;
-		std::vector<Bone> bones_;
 		std::string name_;
 	};
 
@@ -86,18 +85,19 @@ private:
 private:
 	std::vector<PrivateMesh> mesh_list_;
 	float4x4 global_inverse_matrix_;
+	std::vector<Bone> bones_;
 
 public:
 	const unsigned int get_mesh_cnt(void) const;
 	const unsigned int get_vtx_cnt(const unsigned int & mesh_num) const;
 	const unsigned int get_index_cnt(const unsigned int & mesh_num) const;
-	const unsigned int get_bone_cnt(const unsigned int & mesh_num) const;
+	const unsigned int get_bone_cnt(void) const;
 	const std::string & get_mesh_name(const unsigned int & mesh_num) const;
 	const float3 & get_position(const unsigned int & mesh_num, const unsigned int & vtx_num) const;
 	const float3 & get_normal(const unsigned int & mesh_num, const unsigned int & vtx_num) const;
 	const float2 & get_texcoord(const unsigned int & mesh_num, const unsigned int & vtx_num) const;
 	const float4x4 & get_bone_init_matrix(const unsigned int & mesh_num, const unsigned int & bone_num) const;
-	const std::string & get_bone_name(const unsigned int & mesh_num, const unsigned int & bone_num) const;
+	const std::string & get_bone_name(const unsigned int & bone_num) const;
 	const unsigned int & get_bone_id(const unsigned int & mesh_num, const unsigned int & vtx_num, const unsigned int & bone_index) const;
 	const float & get_bone_weight(const unsigned int & mesh_num, const unsigned int & vtx_num, const unsigned int & bone_index) const;
 
