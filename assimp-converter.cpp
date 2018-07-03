@@ -1,5 +1,12 @@
 #include "assimp-converter.h"
+
+#include <assimp\scene.h>
+#include <assimp\Importer.hpp>
+#include <assimp\postprocess.h>
+
 #include <algorithm>
+
+Assimp::Importer importer;
 
 static unsigned int indent = 0;
 
@@ -7,7 +14,7 @@ AssimpModel::AssimpModel(std::string file_name)
 {
 	if (!Init(file_name)) return;
 
-	auto & root = this->importer_.GetScene()->mRootNode;
+	auto & root = importer.GetScene()->mRootNode;
 
 	for(int x = 0; x < 4; ++x)
 		for(int y = 0; y < 4; ++y)
@@ -18,11 +25,11 @@ AssimpModel::AssimpModel(std::string file_name)
 
 bool AssimpModel::Init(std::string file_name)
 {
-	this->importer_.FreeScene();
+	importer.FreeScene();
 	
-	this->importer_.SetPropertyBool(AI_CONFIG_IMPORT_FBX_PRESERVE_PIVOTS, false);
+	importer.SetPropertyBool(AI_CONFIG_IMPORT_FBX_PRESERVE_PIVOTS, false);
 
-	const aiScene * scene = this->importer_.ReadFile(file_name
+	const aiScene * scene = importer.ReadFile(file_name
 		, aiPostProcessSteps::aiProcess_Triangulate
 		| aiPostProcessSteps::aiProcess_MakeLeftHanded
 		| aiPostProcessSteps::aiProcess_FlipUVs
@@ -30,7 +37,7 @@ bool AssimpModel::Init(std::string file_name)
 
 	if (scene == nullptr)
 	{
-		std::cout << this->importer_.GetErrorString() << std::endl;
+		std::cout << importer.GetErrorString() << std::endl;
 		return false;
 	}
 	else
@@ -46,7 +53,7 @@ aiNode * const AssimpModel::FindNodeRecursiveByName(aiNode * const node, const s
 {
 	aiNode * ret = node->FindNode(name.c_str());
 
-	for (int n = 0; n < node->mNumChildren && ret == nullptr; ++n)
+	for (unsigned int n = 0; n < node->mNumChildren && ret == nullptr; ++n)
 		ret = this->FindNodeRecursiveByName(node->mChildren[n], name);
 
 	return ret;
@@ -153,7 +160,7 @@ const float & AssimpModel::get_bone_weight(const unsigned int & mesh_num, const 
 
 bool AssimpModel::ProcessNode(aiNode * node)
 {
-	auto scene = this->importer_.GetScene();
+	auto scene = importer.GetScene();
 
 	//std::cout << node->mName.C_Str() << std::endl;
 
@@ -258,7 +265,7 @@ void AssimpModel::ProcessBones(PrivateMesh & mesh, aiMesh * assimp_mesh)
 			
 			auto bone_matrix = bone->mOffsetMatrix;
 
-			aiNode * node = this->FindNodeRecursiveByName(this->importer_.GetScene()->mRootNode, bone_name);
+			aiNode * node = this->FindNodeRecursiveByName(importer.GetScene()->mRootNode, bone_name);
 
 			auto node_matrix = node->mTransformation;
 

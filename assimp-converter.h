@@ -3,9 +3,8 @@
 #include <iostream>
 #include <vector>
 
-#include <assimp\scene.h>
-#include <assimp\Importer.hpp>
-#include <assimp\postprocess.h>
+struct aiMesh;
+struct aiNode;
 
 struct uint4
 {
@@ -79,9 +78,6 @@ private:
 public:
 	AssimpModel(std::string file_name);
 
-private:
-	Assimp::Importer importer_;
-	
 private:
 	bool Init(std::string file_name);
 
