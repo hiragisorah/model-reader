@@ -1,6 +1,8 @@
 #include "assimp-converter.h"
 #include <algorithm>
 
+unsigned int indent = 0;
+
 AssimpModel::AssimpModel(std::string file_name)
 {
 	if (!Init(file_name)) return;
@@ -36,6 +38,16 @@ bool AssimpModel::Init(std::string file_name)
 	}
 
 	this->mesh_list_.clear();
+}
+
+aiNode * const AssimpModel::FindNodeRecursiveByName(aiNode * const node, const std::string & name) const
+{
+	aiNode * ret = node->FindNode(name.c_str());
+
+	for (int n = 0; n < node->mNumChildren && ret == nullptr; ++n)
+		ret = this->FindNodeRecursiveByName(node->mChildren[n], name);
+
+	return ret;
 }
 
 const unsigned int AssimpModel::get_mesh_cnt(void) const
@@ -102,6 +114,8 @@ bool AssimpModel::ProcessNode(aiNode * node)
 {
 	auto scene = this->importer_.GetScene();
 
+	std::cout << node->mName.C_Str() << std::endl;
+
 	if (!scene->HasMeshes()) return false;
 
 	for (unsigned int n = 0; n < node->mNumMeshes; ++n)
@@ -112,8 +126,16 @@ bool AssimpModel::ProcessNode(aiNode * node)
 		this->ProcessMesh(mesh, assimp_mesh);
 	}
 
+	indent++;
 	for (unsigned int n = 0; n < node->mNumChildren; ++n)
+	{
+		for (unsigned int i = 0; i < indent; ++i)
+		{
+			std::cout << " ";
+		}
 		this->ProcessNode(node->mChildren[n]);
+	}
+	indent--;
 
 	return true;
 }
@@ -192,8 +214,20 @@ void AssimpModel::ProcessBones(PrivateMesh & mesh, aiMesh * assimp_mesh)
 		{
 			this->bones_.emplace_back(Bone());
 			auto & global_bone = this->bones_.back();
+			
+			auto bone_matrix = bone->mOffsetMatrix;
+
+			aiNode * node = this->FindNodeRecursiveByName(this->importer_.GetScene()->mRootNode, bone_name);
+
+			auto node_matrix = node->mTransformation;
+
+			while (node = node->mParent)
+				node_matrix *= node->mTransformation;
+
+			bone_matrix *= node_matrix;
 
 			global_bone.name_ = bone_name;
+
 			for (int x = 0; x < 4; ++x)
 				for (int y = 0; y < 4; ++y)
 					global_bone.init_matrix_.m[x][y] = bone->mOffsetMatrix[x][y];
