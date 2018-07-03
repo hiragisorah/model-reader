@@ -19,6 +19,8 @@ AssimpModel::AssimpModel(std::string file_name)
 bool AssimpModel::Init(std::string file_name)
 {
 	this->importer_.FreeScene();
+	
+	this->importer_.SetPropertyBool(AI_CONFIG_IMPORT_FBX_PRESERVE_PIVOTS, false);
 
 	const aiScene * scene = this->importer_.ReadFile(file_name
 		, aiPostProcessSteps::aiProcess_Triangulate
@@ -90,9 +92,9 @@ const float2 & AssimpModel::get_texcoord(const unsigned int & mesh_num, const un
 	return this->mesh_list_[mesh_num].vertices_[vtx_num].texcoord_;
 }
 
-const float4x4 & AssimpModel::get_bone_init_matrix(const unsigned int & mesh_num, const unsigned int & bone_num) const
+const float4x4 & AssimpModel::get_bone_matrix(const unsigned int & mesh_num, const unsigned int & bone_num) const
 {
-	return this->bones_[bone_num].init_matrix_;
+	return this->bones_[bone_num].matrix_;
 }
 
 const std::string & AssimpModel::get_bone_name(const unsigned int & bone_num) const
@@ -230,7 +232,7 @@ void AssimpModel::ProcessBones(PrivateMesh & mesh, aiMesh * assimp_mesh)
 
 			for (int x = 0; x < 4; ++x)
 				for (int y = 0; y < 4; ++y)
-					global_bone.init_matrix_.m[x][y] = bone->mOffsetMatrix[x][y];
+					global_bone.matrix_.m[x][y] = bone->mOffsetMatrix[x][y];
 
 			bone_id = std::distance(this->bones_.begin(), this->bones_.end());
 		}
