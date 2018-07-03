@@ -41,8 +41,8 @@ struct Bone
 	float4x4 matrix_;
 	std::string name_;
 
-	unsigned int parent_id_;
-	std::vector<unsigned int> children_id_;
+	int parent_id_;
+	std::vector<int> children_id_;
 };
 
 struct VertexBoneData
@@ -92,6 +92,7 @@ private:
 
 private:
 	aiNode * const FindNodeRecursiveByName(aiNode * const node, const std::string & name) const;
+	const int GetBoneIdByName(const std::string & name);
 
 public:
 	const unsigned int get_mesh_cnt(void) const;
@@ -104,6 +105,7 @@ public:
 	const float2 & get_texcoord(const unsigned int & mesh_num, const unsigned int & vtx_num) const;
 	const float4x4 & get_bone_matrix(const unsigned int & mesh_num, const unsigned int & bone_num) const;
 	const std::string & get_bone_name(const unsigned int & bone_num) const;
+	const int get_bone_id(const std::string name);
 	const unsigned int & get_bone_id(const unsigned int & mesh_num, const unsigned int & vtx_num, const unsigned int & bone_index) const;
 	const float & get_bone_weight(const unsigned int & mesh_num, const unsigned int & vtx_num, const unsigned int & bone_index) const;
 

@@ -52,6 +52,18 @@ aiNode * const AssimpModel::FindNodeRecursiveByName(aiNode * const node, const s
 	return ret;
 }
 
+const int AssimpModel::GetBoneIdByName(const std::string & name)
+{
+	int ret = -1;
+
+	auto search = std::find_if(this->bones_.begin(), this->bones_.end(), [&](Bone & a) { return a.name_ == name.c_str(); });
+
+	if (search != this->bones_.end())
+		ret = std::distance(this->bones_.begin(), search);
+
+	return ret;
+}
+
 const unsigned int AssimpModel::get_mesh_cnt(void) const
 {
 	return this->mesh_list_.size();
@@ -100,6 +112,18 @@ const float4x4 & AssimpModel::get_bone_matrix(const unsigned int & mesh_num, con
 const std::string & AssimpModel::get_bone_name(const unsigned int & bone_num) const
 {
 	return this->bones_[bone_num].name_;
+}
+
+const int AssimpModel::get_bone_id(const std::string name)
+{
+	int ret = -1;
+
+	auto search = std::find_if(this->bones_.begin(), this->bones_.end(), [&](Bone & a) { return a.name_ == name.c_str(); });
+
+	if (search != this->bones_.end())
+		ret = std::distance(this->bones_.begin(), search);
+
+	return ret;
 }
 
 const unsigned int & AssimpModel::get_bone_id(const unsigned int & mesh_num, const unsigned int & vtx_num, const unsigned int & bone_index) const
@@ -223,10 +247,18 @@ void AssimpModel::ProcessBones(PrivateMesh & mesh, aiMesh * assimp_mesh)
 
 			auto node_matrix = node->mTransformation;
 
-			while (node = node->mParent)
-				node_matrix *= node->mTransformation;
-
-			bone_matrix *= node_matrix;
+			if (node->mParent)
+			{
+				global_bone.parent_id_ = this->GetBoneIdByName(node->mParent->mName.C_Str());
+				if (global_bone.parent_id_ != -1)
+				{
+					this->bones_[global_bone.parent_id_].children_id_.emplace_back((int)this->bones_.size() - 1);
+				}
+			}
+			else
+			{
+				global_bone.parent_id_ = -1;
+			}
 
 			global_bone.name_ = bone_name;
 
@@ -234,7 +266,7 @@ void AssimpModel::ProcessBones(PrivateMesh & mesh, aiMesh * assimp_mesh)
 				for (int y = 0; y < 4; ++y)
 					global_bone.matrix_.m[x][y] = bone->mOffsetMatrix[x][y];
 
-			bone_id = std::distance(this->bones_.begin(), this->bones_.end());
+			bone_id = std::distance(this->bones_.begin(), this->bones_.end() - 1);
 		}
 		else
 		{
