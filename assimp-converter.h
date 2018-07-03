@@ -38,7 +38,11 @@ struct float4x4
 
 struct Bone
 {
-	float4x4 init_matrix_;
+	float4x4 matrix_;
+	std::string name_;
+
+	int parent_id_;
+	std::vector<int> children_id_;
 };
 
 struct VertexBoneData
@@ -69,7 +73,7 @@ private:
 
 		std::vector<Vertex> vertices_;
 		std::vector<unsigned int> indices_;
-		std::vector<Bone> bones_;
+		std::string name_;
 	};
 
 public:
@@ -84,17 +88,28 @@ private:
 private:
 	std::vector<PrivateMesh> mesh_list_;
 	float4x4 global_inverse_matrix_;
+	std::vector<Bone> bones_;
+
+private:
+	aiNode * const FindNodeRecursiveByName(aiNode * const node, const std::string & name) const;
+	const int GetBoneIdByName(const std::string & name);
 
 public:
 	const unsigned int get_mesh_cnt(void) const;
 	const unsigned int get_vtx_cnt(const unsigned int & mesh_num) const;
 	const unsigned int get_index_cnt(const unsigned int & mesh_num) const;
-	const unsigned int get_bone_cnt(const unsigned int & mesh_num) const;
+	const unsigned int get_bone_cnt(void) const;
+	const std::string & get_mesh_name(const unsigned int & mesh_num) const;
 	const float3 & get_position(const unsigned int & mesh_num, const unsigned int & vtx_num) const;
 	const float3 & get_normal(const unsigned int & mesh_num, const unsigned int & vtx_num) const;
 	const float2 & get_texcoord(const unsigned int & mesh_num, const unsigned int & vtx_num) const;
-	const float4x4 & get_bone_init_matrix(const unsigned int & mesh_num, const unsigned int & bone_num) const;
+	const float4x4 & get_bone_matrix(const unsigned int & mesh_num, const unsigned int & bone_num) const;
+	const std::string & get_bone_name(const unsigned int & bone_num) const;
+	const int get_bone_id(const std::string name);
 	const unsigned int & get_bone_id(const unsigned int & mesh_num, const unsigned int & vtx_num, const unsigned int & bone_index) const;
+	const int & get_bone_parent_id(const unsigned int & bone_id) const;
+	const unsigned int get_bone_child_cnt(const unsigned int & bone_id) const;
+	const int & get_bone_child_id(const unsigned int & bone_id, const unsigned int & child_id) const;
 	const float & get_bone_weight(const unsigned int & mesh_num, const unsigned int & vtx_num, const unsigned int & bone_index) const;
 
 private:

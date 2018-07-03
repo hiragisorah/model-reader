@@ -1,6 +1,8 @@
 #include "assimp-converter.h"
 #include <algorithm>
 
+static unsigned int indent = 0;
+
 AssimpModel::AssimpModel(std::string file_name)
 {
 	if (!Init(file_name)) return;
@@ -17,6 +19,8 @@ AssimpModel::AssimpModel(std::string file_name)
 bool AssimpModel::Init(std::string file_name)
 {
 	this->importer_.FreeScene();
+	
+	this->importer_.SetPropertyBool(AI_CONFIG_IMPORT_FBX_PRESERVE_PIVOTS, false);
 
 	const aiScene * scene = this->importer_.ReadFile(file_name
 		, aiPostProcessSteps::aiProcess_Triangulate
@@ -38,6 +42,28 @@ bool AssimpModel::Init(std::string file_name)
 	this->mesh_list_.clear();
 }
 
+aiNode * const AssimpModel::FindNodeRecursiveByName(aiNode * const node, const std::string & name) const
+{
+	aiNode * ret = node->FindNode(name.c_str());
+
+	for (int n = 0; n < node->mNumChildren && ret == nullptr; ++n)
+		ret = this->FindNodeRecursiveByName(node->mChildren[n], name);
+
+	return ret;
+}
+
+const int AssimpModel::GetBoneIdByName(const std::string & name)
+{
+	int ret = -1;
+
+	auto search = std::find_if(this->bones_.begin(), this->bones_.end(), [&](Bone & a) { return a.name_ == name.c_str(); });
+
+	if (search != this->bones_.end())
+		ret = std::distance(this->bones_.begin(), search);
+
+	return ret;
+}
+
 const unsigned int AssimpModel::get_mesh_cnt(void) const
 {
 	return this->mesh_list_.size();
@@ -53,9 +79,14 @@ const unsigned int AssimpModel::get_index_cnt(const unsigned int & mesh_num) con
 	return this->mesh_list_[mesh_num].indices_.size();
 }
 
-const unsigned int AssimpModel::get_bone_cnt(const unsigned int & mesh_num) const
+const unsigned int AssimpModel::get_bone_cnt(void) const
 {
-	return this->mesh_list_[mesh_num].bones_.size();
+	return this->bones_.size();
+}
+
+const std::string & AssimpModel::get_mesh_name(const unsigned int & mesh_num) const
+{
+	return this->mesh_list_[mesh_num].name_;
 }
 
 const float3 & AssimpModel::get_position(const unsigned int & mesh_num, const unsigned int & vtx_num) const
@@ -73,14 +104,46 @@ const float2 & AssimpModel::get_texcoord(const unsigned int & mesh_num, const un
 	return this->mesh_list_[mesh_num].vertices_[vtx_num].texcoord_;
 }
 
-const float4x4 & AssimpModel::get_bone_init_matrix(const unsigned int & mesh_num, const unsigned int & bone_num) const
+const float4x4 & AssimpModel::get_bone_matrix(const unsigned int & mesh_num, const unsigned int & bone_num) const
 {
-	return this->mesh_list_[mesh_num].bones_[bone_num].init_matrix_;
+	return this->bones_[bone_num].matrix_;
+}
+
+const std::string & AssimpModel::get_bone_name(const unsigned int & bone_num) const
+{
+	return this->bones_[bone_num].name_;
+}
+
+const int AssimpModel::get_bone_id(const std::string name)
+{
+	int ret = -1;
+
+	auto search = std::find_if(this->bones_.begin(), this->bones_.end(), [&](Bone & a) { return a.name_ == name.c_str(); });
+
+	if (search != this->bones_.end())
+		ret = std::distance(this->bones_.begin(), search);
+
+	return ret;
 }
 
 const unsigned int & AssimpModel::get_bone_id(const unsigned int & mesh_num, const unsigned int & vtx_num, const unsigned int & bone_index) const
 {
 	return this->mesh_list_[mesh_num].vertices_[vtx_num].bone_.id_[bone_index];
+}
+
+const int & AssimpModel::get_bone_parent_id(const unsigned int & bone_id) const
+{
+	return this->bones_[bone_id].parent_id_;
+}
+
+const unsigned int AssimpModel::get_bone_child_cnt(const unsigned int & bone_id) const
+{
+	return this->bones_[bone_id].children_id_.size();
+}
+
+const int & AssimpModel::get_bone_child_id(const unsigned int & bone_id, const unsigned int & child_id) const
+{
+	return this->bones_[bone_id].children_id_[child_id];
 }
 
 const float & AssimpModel::get_bone_weight(const unsigned int & mesh_num, const unsigned int & vtx_num, const unsigned int & bone_index) const
@@ -92,19 +155,28 @@ bool AssimpModel::ProcessNode(aiNode * node)
 {
 	auto scene = this->importer_.GetScene();
 
-	if (!scene->HasMeshes()) return false;
+	//std::cout << node->mName.C_Str() << std::endl;
 
-	this->mesh_list_.resize(this->mesh_list_.size() + node->mNumMeshes);
+	if (!scene->HasMeshes()) return false;
 
 	for (unsigned int n = 0; n < node->mNumMeshes; ++n)
 	{
-		auto & mesh = this->mesh_list_[n];
+		this->mesh_list_.emplace_back(PrivateMesh());
+		auto & mesh = this->mesh_list_.back();
 		auto & assimp_mesh = scene->mMeshes[node->mMeshes[n]];
 		this->ProcessMesh(mesh, assimp_mesh);
 	}
 
+	indent++;
 	for (unsigned int n = 0; n < node->mNumChildren; ++n)
+	{
+		for (unsigned int i = 0; i < indent; ++i)
+		{
+			//std::cout << " ";
+		}
 		this->ProcessNode(node->mChildren[n]);
+	}
+	indent--;
 
 	return true;
 }
@@ -115,7 +187,6 @@ bool AssimpModel::ProcessMesh(PrivateMesh & mesh, aiMesh * assimp_mesh)
 		|| !assimp_mesh->HasNormals()
 		|| !assimp_mesh->HasTextureCoords(0))
 		return false;
-
 
 	for (unsigned int n = 0; n < assimp_mesh->mNumFaces; ++n)
 	{
@@ -171,22 +242,58 @@ void AssimpModel::ProcessBones(PrivateMesh & mesh, aiMesh * assimp_mesh)
 
 	vertices_bones.resize(assimp_mesh->mNumVertices);
 
-	mesh.bones_.resize(assimp_mesh->mNumBones);
-
 	for (unsigned int n = 0; n < assimp_mesh->mNumBones; ++n)
 	{
 		auto & bone = assimp_mesh->mBones[n];
 
-		for (int x = 0; x < 4; ++x)
-			for (int y = 0; y < 4; ++y)
-				mesh.bones_[n].init_matrix_.m[x][y] = bone->mOffsetMatrix[x][y];
+		std::string bone_name = bone->mName.C_Str();
+
+		unsigned int bone_id = 0;
+
+		auto search = std::find_if(this->bones_.begin(), this->bones_.end(), [&](Bone & a) { return a.name_ == bone_name; });
+		if (search == this->bones_.end())
+		{
+			this->bones_.emplace_back(Bone());
+			auto & global_bone = this->bones_.back();
+			
+			auto bone_matrix = bone->mOffsetMatrix;
+
+			aiNode * node = this->FindNodeRecursiveByName(this->importer_.GetScene()->mRootNode, bone_name);
+
+			auto node_matrix = node->mTransformation;
+
+			if (node->mParent)
+			{
+				global_bone.parent_id_ = this->GetBoneIdByName(node->mParent->mName.C_Str());
+				if (global_bone.parent_id_ != -1)
+				{
+					this->bones_[global_bone.parent_id_].children_id_.emplace_back((int)this->bones_.size() - 1);
+				}
+			}
+			else
+			{
+				global_bone.parent_id_ = -1;
+			}
+
+			global_bone.name_ = bone_name;
+
+			for (int x = 0; x < 4; ++x)
+				for (int y = 0; y < 4; ++y)
+					global_bone.matrix_.m[x][y] = bone->mOffsetMatrix[x][y];
+
+			bone_id = std::distance(this->bones_.begin(), this->bones_.end() - 1);
+		}
+		else
+		{
+			bone_id = std::distance(this->bones_.begin(), search);
+		}
 
 		for (unsigned int i = 0; i < bone->mNumWeights; ++i)
 		{
 			auto & weight = bone->mWeights[i].mWeight;
 			auto & vtx_id = bone->mWeights[i].mVertexId;
 			BoneData bone;
-			bone.bone_id = n;
+			bone.bone_id = bone_id;
 			bone.weight_ = weight;
 			vertices_bones[vtx_id].emplace_back(bone);
 		}
