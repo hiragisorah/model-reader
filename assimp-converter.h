@@ -107,6 +107,9 @@ public:
 	const std::string & get_bone_name(const unsigned int & bone_num) const;
 	const int get_bone_id(const std::string name);
 	const unsigned int & get_bone_id(const unsigned int & mesh_num, const unsigned int & vtx_num, const unsigned int & bone_index) const;
+	const int & get_bone_parent_id(const unsigned int & bone_id) const;
+	const unsigned int get_bone_child_cnt(const unsigned int & bone_id) const;
+	const int & get_bone_child_id(const unsigned int & bone_id, const unsigned int & child_id) const;
 	const float & get_bone_weight(const unsigned int & mesh_num, const unsigned int & vtx_num, const unsigned int & bone_index) const;
 
 private:

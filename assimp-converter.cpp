@@ -1,7 +1,7 @@
 #include "assimp-converter.h"
 #include <algorithm>
 
-unsigned int indent = 0;
+static unsigned int indent = 0;
 
 AssimpModel::AssimpModel(std::string file_name)
 {
@@ -131,6 +131,21 @@ const unsigned int & AssimpModel::get_bone_id(const unsigned int & mesh_num, con
 	return this->mesh_list_[mesh_num].vertices_[vtx_num].bone_.id_[bone_index];
 }
 
+const int & AssimpModel::get_bone_parent_id(const unsigned int & bone_id) const
+{
+	return this->bones_[bone_id].parent_id_;
+}
+
+const unsigned int AssimpModel::get_bone_child_cnt(const unsigned int & bone_id) const
+{
+	return this->bones_[bone_id].children_id_.size();
+}
+
+const int & AssimpModel::get_bone_child_id(const unsigned int & bone_id, const unsigned int & child_id) const
+{
+	return this->bones_[bone_id].children_id_[child_id];
+}
+
 const float & AssimpModel::get_bone_weight(const unsigned int & mesh_num, const unsigned int & vtx_num, const unsigned int & bone_index) const
 {
 	return this->mesh_list_[mesh_num].vertices_[vtx_num].bone_.weight_[bone_index];
@@ -140,7 +155,7 @@ bool AssimpModel::ProcessNode(aiNode * node)
 {
 	auto scene = this->importer_.GetScene();
 
-	std::cout << node->mName.C_Str() << std::endl;
+	//std::cout << node->mName.C_Str() << std::endl;
 
 	if (!scene->HasMeshes()) return false;
 
@@ -157,7 +172,7 @@ bool AssimpModel::ProcessNode(aiNode * node)
 	{
 		for (unsigned int i = 0; i < indent; ++i)
 		{
-			std::cout << " ";
+			//std::cout << " ";
 		}
 		this->ProcessNode(node->mChildren[n]);
 	}
